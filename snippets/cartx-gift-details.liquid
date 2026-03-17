@@ -1,0 +1,88 @@
+{% comment %}
+  CartX Gift Details — Locked gift preview
+  Shows upcoming gift that hasn't been unlocked yet.
+  Receives: gift_rules, total_cart_price, total_cart_price_cents, total_cart_quantity, is_price_based
+{% endcomment %}
+
+{%- if gift_rules and gift_rules.size > 0 -%}
+  {%- liquid
+    # Find the next unmet rule (lowest threshold above current value)
+    assign next_rule = nil
+    for rule in gift_rules
+      if is_price_based
+        assign threshold = rule.trigger_price.value | default: 0 | times: 100
+        if total_cart_price_cents < threshold
+          unless next_rule
+            assign next_rule = rule
+            assign next_threshold = threshold
+          else
+            assign existing_threshold = next_rule.trigger_price.value | default: 0 | times: 100
+            if threshold < existing_threshold
+              assign next_rule = rule
+              assign next_threshold = threshold
+            endif
+          endunless
+        endif
+      else
+        assign threshold = rule.triggered_quantity.value | default: 0
+        if total_cart_quantity < threshold
+          unless next_rule
+            assign next_rule = rule
+            assign next_threshold = threshold
+          else
+            assign existing_threshold = next_rule.triggered_quantity.value | default: 0
+            if threshold < existing_threshold
+              assign next_rule = rule
+              assign next_threshold = threshold
+            endif
+          endunless
+        endif
+      endif
+    endfor
+  -%}
+
+  {%- if next_rule and next_rule.gift_locked_product.value -%}
+    {%- liquid
+      assign locked_product = next_rule.gift_locked_product.value
+      assign locked_message = next_rule.gift_locked_message.value | default: ''
+
+      if is_price_based
+        assign remaining = next_threshold | minus: total_cart_price_cents | divided_by: 100
+        assign locked_message = locked_message | replace: '[[PRICE]]', remaining
+      else
+        assign remaining = next_threshold | minus: total_cart_quantity
+        assign locked_message = locked_message | replace: '[[PRODUCT]]', remaining
+      endif
+
+      if locked_product.title
+        assign locked_message = locked_message | replace: '[[TITLE]]', locked_product.title
+      endif
+    -%}
+
+    <div class="cartx-gift-details">
+      <div class="cartx-gift-locked">
+        <div class="cartx-gift-locked-image">
+          {%- if locked_product.featured_image -%}
+            <img
+              src="{{ locked_product.featured_image | image_url: width: 120 }}"
+              alt="{{ locked_product.title | escape }}"
+              width="56"
+              height="56"
+              loading="lazy"
+            >
+          {%- endif -%}
+        </div>
+        <div class="cartx-gift-locked-info">
+          <p class="cartx-gift-locked-title">{{ locked_product.title }}</p>
+          <p class="cartx-gift-locked-message">{{ locked_message }}</p>
+        </div>
+        <div class="cartx-gift-lock-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  {%- endif -%}
+{%- endif -%}

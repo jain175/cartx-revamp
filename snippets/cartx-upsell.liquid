@@ -1,0 +1,88 @@
+{% comment %}
+  CartX Upsell — Product recommendations
+  3 modes: product metafield → section settings → AI
+  Receives: cart, section, ai_upsell
+{% endcomment %}
+
+{%- liquid
+  assign upsell_products = nil
+
+  # Mode 1: Product metafield on last cart item
+  if cart.items.size > 0
+    assign last_item = cart.items | last
+    assign metafield_upsells = last_item.product.metafields.custom.cartx_upsell_products.value
+    if metafield_upsells and metafield_upsells.size > 0
+      assign upsell_products = metafield_upsells
+    endif
+  endif
+
+  # Mode 2: Section settings (if no metafield)
+  unless upsell_products
+    if section.settings.enable_product_base_upsell and section.settings.product_base_upsell_products.size > 0
+      assign upsell_products = section.settings.product_base_upsell_products
+    endif
+  endunless
+
+  # Build set of variant IDs already in cart for filtering
+  assign cart_variant_ids = ''
+  for item in cart.items
+    assign cart_variant_ids = cart_variant_ids | append: item.variant_id | append: ','
+  endfor
+-%}
+
+{%- if upsell_products and upsell_products.size > 0 -%}
+  <div class="cartx-upsell-section">
+    <h3 class="cartx-upsell-heading">You might also like</h3>
+    <div class="cartx-upsell-products">
+      {%- for product in upsell_products limit: 6 -%}
+        {%- liquid
+          assign first_variant = product.selected_or_first_available_variant
+          assign variant_id_str = first_variant.id | append: ','
+
+          # Skip if already in cart
+          if cart_variant_ids contains variant_id_str
+            continue
+          endif
+
+          # Skip if unavailable
+          unless first_variant.available
+            continue
+          endunless
+        -%}
+        <div class="cartx-upsell-product">
+          <div class="cartx-upsell-image">
+            {%- if product.featured_image -%}
+              <img
+                src="{{ product.featured_image | image_url: width: 180 }}"
+                alt="{{ product.title | escape }}"
+                width="80"
+                height="80"
+                loading="lazy"
+              >
+            {%- endif -%}
+          </div>
+          <div class="cartx-upsell-info">
+            <div class="cartx-upsell-title">{{ product.title }}</div>
+            <div class="cartx-upsell-price">
+              {%- if first_variant.compare_at_price > first_variant.price -%}
+                <span class="cartx-upsell-compare-price">{{ first_variant.compare_at_price | money }}</span>
+              {%- endif -%}
+              {{ first_variant.price | money }}
+            </div>
+          </div>
+          <button class="cartx-upsell-add-btn"
+            data-upsell-add="{{ first_variant.id }}"
+            data-upsell-price="{{ first_variant.price }}">
+            Add
+          </button>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+{%- elsif ai_upsell -%}
+  {%- comment -%} AI mode: empty container for JS to populate {%- endcomment -%}
+  <div class="cartx-upsell-section">
+    <h3 class="cartx-upsell-heading">Recommended for you</h3>
+    <div class="cartx-upsell-products"></div>
+  </div>
+{%- endif -%}

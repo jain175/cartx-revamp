@@ -1,0 +1,98 @@
+{% comment %}
+  CartX BOGO Offer Cards — Collection-triggered offers
+  Receives: bogo_offers, cart, total_cart_price_cents
+{% endcomment %}
+
+{%- if bogo_offers and bogo_offers.size > 0 -%}
+  {%- comment -%} Build set of collection IDs in cart {%- endcomment -%}
+  {%- liquid
+    assign cart_collection_counts = ''
+  -%}
+
+  <div class="cartx-bogo-section">
+    {%- for offer in bogo_offers -%}
+      {%- liquid
+        assign trigger_collection = offer.trigger_collection.value | default: nil
+        assign is_triggered = false
+        assign is_price_base = offer.is_price_base.value | default: false
+        assign auto_add = offer.auto_add.value | default: false
+        assign bundle_mode = offer.bundle_products.value | default: false
+        assign offer_heading = offer.offer_heading.value | default: 'Special offer for you!'
+        assign offer_products = offer.offer_products.value | default: nil
+        assign reverse_products = offer.reverse_offer_product.value | default: nil
+        assign min_offer_qty = offer.min_offer_quantity.value | default: 1
+
+        # Skip if auto_add with single variant (handled by engine)
+        if auto_add and offer_products and offer_products.size == 1
+          continue
+        endif
+
+        # Check if offer products are already in cart
+        assign offer_in_cart = 0
+      -%}
+
+      {%- if offer_products and offer_products.size > 0 -%}
+        <div class="cartx-bogo-offer-card"
+          data-remaining="{{ min_offer_qty | minus: offer_in_cart }}">
+          <h4 class="cartx-bogo-heading" data-template="{{ offer_heading }}">
+            {{ offer_heading | replace: '[[PRODUCT]]', min_offer_qty }}
+          </h4>
+          <div class="cartx-bogo-products">
+            {%- for product_ref in offer_products -%}
+              {%- assign bogo_product = product_ref -%}
+              {%- if bogo_product -%}
+                {%- liquid
+                  assign bogo_vid = bogo_product.id | split: '/' | last
+                  assign bogo_variant = bogo_product.variants | first
+                  if bogo_variant
+                    assign bogo_vid = bogo_variant.id
+                  endif
+                -%}
+                <div class="cartx-bogo-product">
+                  <div class="cartx-bogo-product-image">
+                    {%- if bogo_product.featured_image -%}
+                      <img
+                        src="{{ bogo_product.featured_image | image_url: width: 140 }}"
+                        alt="{{ bogo_product.title | escape }}"
+                        width="64"
+                        height="64"
+                        loading="lazy"
+                      >
+                    {%- endif -%}
+                  </div>
+                  <div class="cartx-bogo-product-title">{{ bogo_product.title }}</div>
+                  {%- unless bundle_mode -%}
+                    <button class="cartx-bogo-add-btn" data-bogo-add-variant="{{ bogo_vid }}">
+                      Add
+                    </button>
+                  {%- endunless -%}
+                </div>
+              {%- endif -%}
+            {%- endfor -%}
+          </div>
+
+          {%- if bundle_mode and offer_products.size > 1 -%}
+            {%- liquid
+              assign bundle_ids = ''
+              for p in offer_products
+                assign pvid = p.id | split: '/' | last
+                assign pv = p.variants | first
+                if pv
+                  assign pvid = pv.id
+                endif
+                if bundle_ids != ''
+                  assign bundle_ids = bundle_ids | append: '","'
+                endif
+                assign bundle_ids = bundle_ids | append: pvid
+              endfor
+            -%}
+            <button class="cartx-bogo-add-btn cartx-bogo-bundle-btn"
+              data-bogo-add-bundle='["{{ bundle_ids }}"]'>
+              Add Bundle to Cart
+            </button>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+{%- endif -%}

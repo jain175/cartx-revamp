@@ -1,0 +1,87 @@
+/* CartX BOGO Offers */
+.cartx-bogo-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cartx-border);
+}
+
+.cartx-bogo-heading {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--cartx-text);
+}
+
+.cartx-bogo-offer-card {
+  border: 1px solid var(--cartx-border);
+  border-radius: var(--cartx-radius);
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--cartx-bg);
+}
+
+.cartx-bogo-offer-card:last-child {
+  margin-bottom: 0;
+}
+
+.cartx-bogo-products {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.cartx-bogo-product {
+  flex-shrink: 0;
+  width: 80px;
+  text-align: center;
+}
+
+.cartx-bogo-product-image {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 4px;
+  border-radius: var(--cartx-radius-sm);
+  overflow: hidden;
+  background: var(--cartx-bg-secondary);
+}
+
+.cartx-bogo-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cartx-bogo-product-title {
+  font-size: 10px;
+  color: var(--cartx-text);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cartx-bogo-add-btn {
+  display: block;
+  width: 100%;
+  background: var(--cartx-primary);
+  color: var(--cartx-primary-text);
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--cartx-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.2s;
+  text-align: center;
+}
+
+.cartx-bogo-add-btn:hover {
+  opacity: 0.9;
+}
+
+.cartx-bogo-bundle-btn {
+  background: var(--cartx-accent);
+  color: var(--cartx-accent-text);
+}

@@ -1,0 +1,66 @@
+{% comment %}
+  CartX Order Summary — Price breakdown
+  Receives: cart
+{% endcomment %}
+
+{%- if cart.item_count > 0 -%}
+  {%- liquid
+    # Calculate MRP total (original prices)
+    assign mrp_total = 0
+    assign discount_on_mrp = 0
+    assign coupon_discount = 0
+
+    for item in cart.items
+      assign mrp_total = mrp_total | plus: item.original_line_price
+    endfor
+
+    # Discount on MRP = original total - pre-discount total
+    assign pre_discount = cart.items_subtotal_price
+    assign discount_on_mrp = mrp_total | minus: pre_discount
+
+    # Coupon discount from cart level
+    for discount in cart.cart_level_discount_applications
+      assign coupon_discount = coupon_discount | plus: discount.total_allocated_amount
+    endfor
+  -%}
+
+  <div class="cartx-order-summary">
+    <div class="cartx-summary-row">
+      <span>MRP Total</span>
+      <span>{{ mrp_total | money }}</span>
+    </div>
+
+    {%- if discount_on_mrp > 0 -%}
+      <div class="cartx-summary-row cartx-summary-discount">
+        <span>Discount on MRP</span>
+        <span>-{{ discount_on_mrp | money }}</span>
+      </div>
+    {%- endif -%}
+
+    {%- if coupon_discount > 0 -%}
+      <div class="cartx-summary-row cartx-summary-discount">
+        <span>Coupon Discount</span>
+        <span>-{{ coupon_discount | money }}</span>
+      </div>
+    {%- endif -%}
+
+    <div class="cartx-summary-row">
+      <span>Shipping</span>
+      <span class="cartx-shipping-free">
+        <s>₹49</s> FREE
+      </span>
+    </div>
+
+    <div class="cartx-summary-row cartx-summary-total">
+      <span>Total</span>
+      <span>{{ cart.total_price | money }}</span>
+    </div>
+
+    {%- if discount_on_mrp > 0 or coupon_discount > 0 -%}
+      {%- assign total_savings = discount_on_mrp | plus: coupon_discount -%}
+      <div class="cartx-summary-savings">
+        You're saving {{ total_savings | money }} on this order!
+      </div>
+    {%- endif -%}
+  </div>
+{%- endif -%}
