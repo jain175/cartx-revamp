@@ -1,0 +1,45 @@
+/* CartX Scheduler / Countdown Timer */
+.cartx-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--cartx-error);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: var(--cartx-radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cartx-timer-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.cartx-countdown-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.cartx-timer-expired {
+  opacity: 0.5;
+}
+
+.cartx-timer-expired .cartx-countdown-display {
+  text-decoration: line-through;
+}
+
+/* Offer expiry banner */
+.cartx-offer-expiry-banner {
+  background: linear-gradient(135deg, var(--cartx-error), #ff6b6b);
+  color: #fff;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}

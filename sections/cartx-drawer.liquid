@@ -1,0 +1,248 @@
+{% comment %}
+  CartX Drawer Section — Main section wrapper
+  Handles: metaobject resolution, schema, CSS/JS loading
+  Re-rendered via: GET /?sections=cartx-drawer
+{% endcomment %}
+
+{%- liquid
+  # --- VIP detection ---
+  assign is_vip = false
+  if customer and customer.tags
+    for tag in customer.tags
+      assign tag_lower = tag | downcase
+      if tag_lower == 'vip'
+        assign is_vip = true
+        break
+      endif
+    endfor
+  endif
+
+  # --- Select metaobject set ---
+  if is_vip
+    assign gwp_entries = shop.metaobjects.vip_gwp.values
+  else
+    assign gwp_entries = shop.metaobjects.site_gwp.values
+  endif
+
+  # --- Page matching ---
+  assign current_path = request.path
+  assign matched_object = nil
+  assign fallback_object = nil
+
+  if gwp_entries
+    for entry in gwp_entries
+      assign handles = entry.page_handle.value | split: ','
+      for handle in handles
+        assign h = handle | strip
+        if h == current_path
+          assign matched_object = entry
+          break
+        endif
+        if h == '/'
+          assign fallback_object = entry
+        endif
+      endfor
+      if matched_object
+        break
+      endif
+    endfor
+  endif
+
+  unless matched_object
+    assign matched_object = fallback_object
+  endunless
+
+  # --- Cart totals (excluding freebies + combos) ---
+  assign total_cart_price = 0
+  assign total_cart_quantity = 0
+  assign gift_product_total = 0
+  assign gift_product_price = 0
+  assign total_combos_quantity = 0
+  assign total_combos_price = 0
+
+  for item in cart.items
+    assign item_price_check = item.final_line_price
+    if item_price_check == 0 or item_price_check == 1 or item_price_check == 100
+      assign orig_check = item.original_line_price
+      if orig_check == 0 or orig_check == 1 or orig_check == 100
+        assign gift_product_total = gift_product_total | plus: item.quantity
+        assign gift_product_price = gift_product_price | plus: item.final_line_price
+        continue
+      endif
+    endif
+    if item.product_type == 'Combos'
+      assign total_combos_quantity = total_combos_quantity | plus: item.quantity
+      assign total_combos_price = total_combos_price | plus: item.final_line_price
+      continue
+    endif
+  endfor
+
+  assign total_cart_quantity = cart.item_count | minus: gift_product_total | minus: total_combos_quantity
+  assign total_cart_price_cents = cart.total_price | minus: gift_product_price | minus: total_combos_price
+  assign total_cart_price = total_cart_price_cents | divided_by: 100
+
+  # --- Config flags ---
+  assign is_price_based = false
+  assign disable_progress_bar = false
+  assign progressbar_is_price_based = false
+
+  if matched_object
+    if matched_object.is_price_based.value == true
+      assign is_price_based = true
+    endif
+    if matched_object.disable_progress_bar.value == true
+      assign disable_progress_bar = true
+    endif
+    if matched_object.progressbar_is_price_based.value == true
+      assign progressbar_is_price_based = true
+    endif
+  endif
+
+  # --- Upsell mode ---
+  assign ai_upsell = true
+  if section.settings.enable_product_base_upsell
+    assign ai_upsell = false
+  endif
+-%}
+
+{{ 'cartx-core.theme.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-drawer.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.progress.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.gwp.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.claim.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.bogo.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.coupon.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.upsell.css' | asset_url | stylesheet_tag }}
+{{ 'cartx-feat.scheduler.css' | asset_url | stylesheet_tag }}
+
+<cart-drawer class="cartx-drawer" data-cartx-theme-preset="{{ section.settings.theme_preset | default: 'normal' }}">
+  <div id="CartDrawer" class="cartx-drawer-wrap" role="dialog" aria-modal="true" aria-label="Shopping cart">
+    <div class="cartx-drawer-inner" ai-cart-upsell="{{ ai_upsell }}">
+      {%- render 'cartx-drawer-content',
+        cart: cart,
+        matched_object: matched_object,
+        section: section,
+        total_cart_price: total_cart_price,
+        total_cart_price_cents: total_cart_price_cents,
+        total_cart_quantity: total_cart_quantity,
+        is_price_based: is_price_based,
+        disable_progress_bar: disable_progress_bar,
+        progressbar_is_price_based: progressbar_is_price_based,
+        is_vip: is_vip,
+        ai_upsell: ai_upsell
+      -%}
+    </div>
+  </div>
+</cart-drawer>
+<div id="cartx-drawer-overlay" class="cartx-drawer-overlay"></div>
+
+{% schema %}
+{
+  "name": "CartX Drawer",
+  "tag": "section",
+  "class": "cartx-section",
+  "settings": [
+    {
+      "type": "select",
+      "id": "theme_preset",
+      "label": "Theme Preset",
+      "options": [
+        { "value": "normal", "label": "Normal" },
+        { "value": "sale", "label": "Sale" },
+        { "value": "festive", "label": "Festive" }
+      ],
+      "default": "normal"
+    },
+    {
+      "type": "header",
+      "content": "Announcement Ribbon"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_announcement_ribbon",
+      "label": "Enable announcement ribbon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "announcement_ribbon_text_1",
+      "label": "Announcement text 1"
+    },
+    {
+      "type": "url",
+      "id": "announcement_ribbon_url_1",
+      "label": "Announcement URL 1"
+    },
+    {
+      "type": "text",
+      "id": "announcement_ribbon_text_2",
+      "label": "Announcement text 2"
+    },
+    {
+      "type": "url",
+      "id": "announcement_ribbon_url_2",
+      "label": "Announcement URL 2"
+    },
+    {
+      "type": "text",
+      "id": "announcement_ribbon_text_3",
+      "label": "Announcement text 3"
+    },
+    {
+      "type": "url",
+      "id": "announcement_ribbon_url_3",
+      "label": "Announcement URL 3"
+    },
+    {
+      "type": "checkbox",
+      "id": "announcement_ribbon_autoplay",
+      "label": "Auto-rotate announcements",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "announcement_ribbon_rotation_speed",
+      "label": "Rotation speed (seconds)",
+      "min": 2,
+      "max": 10,
+      "step": 1,
+      "default": 3
+    },
+    {
+      "type": "header",
+      "content": "Empty Cart"
+    },
+    {
+      "type": "image_picker",
+      "id": "empty_cart_image",
+      "label": "Empty cart image"
+    },
+    {
+      "type": "header",
+      "content": "Upsells"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_product_base_upsell",
+      "label": "Use product-based upsells (disables AI)",
+      "default": false
+    },
+    {
+      "type": "product_list",
+      "id": "product_base_upsell_products",
+      "label": "Upsell products",
+      "limit": 10
+    },
+    {
+      "type": "header",
+      "content": "Gift Unavailable"
+    },
+    {
+      "type": "text",
+      "id": "gift_unavailable_message",
+      "label": "Gift unavailable message",
+      "default": "Gift product is out of stock"
+    }
+  ]
+}
+{% endschema %}

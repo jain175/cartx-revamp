@@ -1,0 +1,87 @@
+{% comment %}
+  CartX Cart Ribbon — Dynamic promotional message in footer area
+  Receives: matched_object, total_cart_price, total_cart_price_cents,
+            total_cart_quantity, is_price_based
+{% endcomment %}
+
+{%- liquid
+  assign ribbon_message = ''
+  assign show_ribbon = false
+
+  if matched_object
+    # Check if all stages met → show final message
+    assign all_met = true
+    if matched_object.gift_manage.value
+      for rule in matched_object.gift_manage.value
+        if is_price_based
+          assign threshold = rule.trigger_price.value | default: 0 | times: 100
+          if total_cart_price_cents < threshold
+            assign all_met = false
+            break
+          endif
+        else
+          assign threshold = rule.triggered_quantity.value | default: 0
+          if total_cart_quantity < threshold
+            assign all_met = false
+            break
+          endif
+        endif
+      endfor
+    endif
+
+    if all_met and matched_object.final_message.value != blank
+      assign ribbon_message = matched_object.final_message.value
+      assign offer_code = matched_object.code.value | default: ''
+      assign ribbon_message = ribbon_message | replace: '[[CODE]]', offer_code
+      assign show_ribbon = true
+    else
+      # Find current applicable rule and show its ribbon message
+      assign applicable_rule = nil
+      if matched_object.gift_manage.value
+        for rule in matched_object.gift_manage.value
+          if is_price_based
+            assign threshold = rule.trigger_price.value | default: 0 | times: 100
+            if total_cart_price_cents < threshold
+              assign applicable_rule = rule
+              break
+            endif
+          else
+            assign threshold = rule.triggered_quantity.value | default: 0
+            if total_cart_quantity < threshold
+              assign applicable_rule = rule
+              break
+            endif
+          endif
+        endfor
+      endif
+
+      if applicable_rule and applicable_rule.ribbon_before_message.value != blank
+        assign ribbon_message = applicable_rule.ribbon_before_message.value
+        if is_price_based
+          assign remaining = threshold | minus: total_cart_price_cents | divided_by: 100
+          assign ribbon_message = ribbon_message | replace: '[[PRICE]]', remaining
+        else
+          assign remaining = threshold | minus: total_cart_quantity
+          assign ribbon_message = ribbon_message | replace: '[[PRODUCT]]', remaining
+        endif
+        assign offer_code = matched_object.code.value | default: ''
+        assign ribbon_message = ribbon_message | replace: '[[CODE]]', offer_code
+        assign show_ribbon = true
+      endif
+    endif
+  endif
+-%}
+
+{%- if show_ribbon and ribbon_message != blank -%}
+  <div class="cartx-cart-ribbon">
+    <p class="cartx-ribbon-text">{{ ribbon_message }}</p>
+    {%- if matched_object.code.value != blank -%}
+      <button class="cartx-ribbon-copy" data-code="{{ matched_object.code.value }}" aria-label="Copy code">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      </button>
+    {%- endif -%}
+  </div>
+{%- endif -%}

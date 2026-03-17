@@ -1,0 +1,72 @@
+/* ==========================================================================
+   CartX Theme System — CSS Variables + Presets
+   Usage: <body data-cartx-theme="normal|sale|festive">
+   ========================================================================== */
+
+/* ---------- Default / Normal Theme ---------- */
+:root,
+[data-cartx-theme="normal"] {
+  --cartx-bg: #ffffff;
+  --cartx-bg-secondary: #f8f8f8;
+  --cartx-text: #1a1a1a;
+  --cartx-text-secondary: #666666;
+  --cartx-primary: #1a1a1a;
+  --cartx-primary-text: #ffffff;
+  --cartx-accent: #e8c36a;
+  --cartx-accent-text: #1a1a1a;
+  --cartx-border: #e5e5e5;
+  --cartx-success: #28a745;
+  --cartx-error: #dc3545;
+  --cartx-warning: #ffc107;
+  --cartx-overlay: rgba(0, 0, 0, 0.5);
+  --cartx-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --cartx-radius: 8px;
+  --cartx-radius-sm: 4px;
+  --cartx-radius-lg: 12px;
+  --cartx-font: inherit;
+  --cartx-transition: 0.3s ease;
+  --cartx-drawer-width: 420px;
+  --cartx-progress-bg: #e9ecef;
+  --cartx-progress-fill: #28a745;
+  --cartx-progress-glow: rgba(40, 167, 69, 0.5);
+  --cartx-free-tag-bg: #28a745;
+  --cartx-free-tag-text: #ffffff;
+  --cartx-coupon-bg: #fff9e6;
+  --cartx-coupon-border: #e8c36a;
+  --cartx-ribbon-bg: #1a1a1a;
+  --cartx-ribbon-text: #ffffff;
+}
+
+/* ---------- Sale Theme ---------- */
+[data-cartx-theme="sale"] {
+  --cartx-bg: #ffffff;
+  --cartx-bg-secondary: #fff5f5;
+  --cartx-primary: #e63946;
+  --cartx-primary-text: #ffffff;
+  --cartx-accent: #ff6b6b;
+  --cartx-accent-text: #ffffff;
+  --cartx-progress-fill: #e63946;
+  --cartx-progress-glow: rgba(230, 57, 70, 0.5);
+  --cartx-free-tag-bg: #e63946;
+  --cartx-coupon-bg: #fff0f0;
+  --cartx-coupon-border: #e63946;
+  --cartx-ribbon-bg: #e63946;
+}
+
+/* ---------- Festive Theme ---------- */
+[data-cartx-theme="festive"] {
+  --cartx-bg: #fffef7;
+  --cartx-bg-secondary: #fdf6e3;
+  --cartx-primary: #8b4513;
+  --cartx-primary-text: #ffffff;
+  --cartx-accent: #daa520;
+  --cartx-accent-text: #1a1a1a;
+  --cartx-border: #daa520;
+  --cartx-progress-fill: #daa520;
+  --cartx-progress-glow: rgba(218, 165, 32, 0.5);
+  --cartx-free-tag-bg: #daa520;
+  --cartx-free-tag-text: #1a1a1a;
+  --cartx-coupon-bg: #fdf6e3;
+  --cartx-coupon-border: #daa520;
+  --cartx-ribbon-bg: #8b4513;
+}

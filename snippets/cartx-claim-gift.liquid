@@ -1,0 +1,75 @@
+{% comment %}
+  CartX Claim Gift — Customer-selectable gift picker
+  Receives: claim_rules, total_cart_price, total_cart_price_cents, total_cart_quantity, is_price_based
+{% endcomment %}
+
+{%- if claim_rules and claim_rules.size > 0 -%}
+  {%- liquid
+    # Find highest matching rule
+    assign applicable_rule = nil
+    for rule in claim_rules
+      if is_price_based
+        assign threshold = rule.trigger_price.value | default: 0 | times: 100
+        if total_cart_price_cents >= threshold
+          unless applicable_rule
+            assign applicable_rule = rule
+          else
+            assign existing = applicable_rule.trigger_price.value | default: 0 | times: 100
+            if threshold > existing
+              assign applicable_rule = rule
+            endif
+          endunless
+        endif
+      else
+        assign threshold = rule.triggered_quantity.value | default: 0
+        if total_cart_quantity >= threshold
+          unless applicable_rule
+            assign applicable_rule = rule
+          else
+            assign existing = applicable_rule.triggered_quantity.value | default: 0
+            if threshold > existing
+              assign applicable_rule = rule
+            endif
+          endunless
+        endif
+      endif
+    endfor
+  -%}
+
+  {%- if applicable_rule and applicable_rule.gift_products.value -%}
+    <div class="cartx-claim-gift-wrap">
+      <h3 class="cartx-claim-gift-heading">Choose your free gift!</h3>
+      <div class="cartx-claim-gift-list">
+        {%- for gift_ref in applicable_rule.gift_products.value -%}
+          {%- assign gift_product = gift_ref -%}
+          {%- if gift_product -%}
+            {%- liquid
+              assign gift_vid = gift_product.id | split: '/' | last
+              assign gift_variant = gift_product.variants | first
+              if gift_variant
+                assign gift_vid = gift_variant.id
+              endif
+            -%}
+            <div class="cartx-claim-gift-card" data-claim-variant="{{ gift_vid }}">
+              <div class="cartx-claim-gift-image">
+                {%- if gift_product.featured_image -%}
+                  <img
+                    src="{{ gift_product.featured_image | image_url: width: 140 }}"
+                    alt="{{ gift_product.title | escape }}"
+                    width="64"
+                    height="64"
+                    loading="lazy"
+                  >
+                {%- endif -%}
+              </div>
+              <div class="cartx-claim-gift-title">{{ gift_product.title }}</div>
+              <button class="cartx-claim-gift-btn" data-claim-variant="{{ gift_vid }}">
+                Claim Gift
+              </button>
+            </div>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+    </div>
+  {%- endif -%}
+{%- endif -%}

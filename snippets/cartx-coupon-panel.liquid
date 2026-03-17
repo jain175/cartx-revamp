@@ -1,0 +1,135 @@
+{% comment %}
+  CartX Coupon Panel — Inline display + slide-in panel with coupon list
+  Receives: matched_object, cart, total_cart_price, total_cart_price_cents,
+            total_cart_quantity, is_price_based
+{% endcomment %}
+
+{%- liquid
+  # Get coupons based on customer status
+  assign coupons = nil
+  if customer
+    if matched_object and matched_object.signed_in_customer_coupons.value
+      assign coupons = matched_object.signed_in_customer_coupons.value
+    endif
+  else
+    if matched_object and matched_object.regular_customer_coupouns.value
+      assign coupons = matched_object.regular_customer_coupouns.value
+    endif
+  endif
+
+  # Check applied discount codes
+  assign has_discount = false
+  assign applied_code = ''
+  if cart.cart_level_discount_applications.size > 0
+    assign has_discount = true
+    assign applied_code = cart.cart_level_discount_applications[0].title
+  endif
+-%}
+
+<div class="cartx-coupon-inline">
+  {%- comment -%} Applied coupon display {%- endcomment -%}
+  <div class="cartx-applied-coupon-container" style="{% unless has_discount %}display:none{% endunless %}">
+    <div>
+      <span class="cartx-offer-tag">Coupon applied: </span>
+      <span class="cartx-applied-code">{{ applied_code }}</span>
+    </div>
+    {%- if has_discount -%}
+      <div class="cartx-remove-button-wrapper" data-code="{{ applied_code }}">
+        <button type="button">Remove</button>
+      </div>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} View all coupons link {%- endcomment -%}
+  {%- if coupons and coupons.size > 0 -%}
+    <div class="cartx-offer-main-wrapper">
+      <span class="cartx-offer-tag">
+        {%- if has_discount -%}
+          {{ coupons.size }} coupon{{ coupons.size | pluralize: '', 's' }} available
+        {%- else -%}
+          Apply a coupon
+        {%- endif -%}
+      </span>
+      <button class="prv-view-all" type="button">View All</button>
+    </div>
+  {%- endif -%}
+</div>
+
+{%- comment -%} Slide-in coupon panel {%- endcomment -%}
+{%- if coupons and coupons.size > 0 -%}
+  <div class="cartx-all-offers">
+    <div class="cartx-offers-header">
+      <h3 class="cartx-offers-title">Available Coupons</h3>
+      <button class="cartx-offer-close" type="button" aria-label="Close coupons">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    {%- comment -%} Manual coupon input {%- endcomment -%}
+    <div class="cartx-coupon-input-wrap">
+      <input type="text" class="cartx-coupon-input" placeholder="Enter coupon code" autocomplete="off">
+      <button class="cartx-coupon-apply-btn" type="button">Apply</button>
+    </div>
+
+    {%- comment -%} Coupon cards {%- endcomment -%}
+    <div class="cartx-offers-list">
+      {%- for coupon in coupons -%}
+        {%- liquid
+          assign c_code = coupon.coupon_code.value | default: ''
+          assign c_code_upper = c_code | upcase
+          assign c_type_title = coupon.coupon_type_title.value | default: ''
+          assign c_title = coupon.coupon_title.value | default: c_code
+          assign c_description = coupon.coupon_description.value | default: ''
+          assign c_before_msg = coupon.coupon_before_message.value | default: ''
+          assign c_after_msg = coupon.coupon_after_message.value | default: ''
+          assign c_success_msg = coupon.coupon_success_message.value | default: 'Coupon applied!'
+          assign c_trigger_qty = coupon.trigger_quantity.value | default: 0
+          assign c_trigger_price = coupon.trigger_price.value | default: 0 | times: 100
+
+          assign is_applied = false
+          for disc in cart.cart_level_discount_applications
+            assign disc_upper = disc.title | upcase
+            if disc_upper == c_code_upper
+              assign is_applied = true
+              break
+            endif
+          endfor
+
+          # Determine status message
+          assign status_msg = ''
+          if is_applied
+            assign status_msg = c_success_msg
+          elsif c_trigger_qty > 0 and total_cart_quantity < c_trigger_qty
+            assign remaining_qty = c_trigger_qty | minus: total_cart_quantity
+            assign status_msg = c_description | replace: '[[PRODUCT]]', remaining_qty
+          elsif c_trigger_price > 0 and total_cart_price_cents < c_trigger_price
+            assign remaining_price = c_trigger_price | minus: total_cart_price_cents | divided_by: 100
+            assign status_msg = c_before_msg | replace: '[[PRICE]]', remaining_price
+          else
+            assign status_msg = c_after_msg
+          endif
+        -%}
+
+        <div class="cartx-coupon-card" data-coupon-code="{{ c_code }}">
+          <div class="cartx-coupon-card-header">
+            {%- if c_type_title != blank -%}
+              <span class="cartx-coupon-type-badge">{{ c_type_title }}</span>
+            {%- endif -%}
+            <span class="cartx-coupon-card-title">{{ c_title }}</span>
+          </div>
+          <div class="cartx-coupon-card-code">Code: {{ c_code }}</div>
+          <div class="cartx-coupon-status{% if is_applied %} applied{% endif %}">{{ status_msg }}</div>
+
+          <div class="cartx-apply-button-wrapper" data-code="{{ c_code }}" style="{% if is_applied %}display:none{% endif %}">
+            <button type="button">Apply</button>
+          </div>
+          <div class="cartx-remove-button-wrapper" data-code="{{ c_code }}" style="{% unless is_applied %}display:none{% endunless %}">
+            <button type="button">Remove</button>
+          </div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+{%- endif -%}

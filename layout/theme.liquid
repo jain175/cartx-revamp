@@ -303,9 +303,18 @@
       {{ 'accessibility.skip_to_text' | t }}
     </a>
 
+    {% comment %} CartX Data Bridge — metaobject → body attributes {% endcomment %}
+    {%- render 'cartx-data-bridge' -%}
+
+    {% comment %} CartX Drawer (replaces Dawn's cart-drawer) {% endcomment %}
+    {%- section 'cartx-drawer' -%}
+
+    {%- comment -%} Dawn's original cart drawer — disabled in favor of CartX {%- endcomment -%}
+    {%- comment -%}
     {%- if settings.cart_type == 'drawer' -%}
       {%- render 'cart-drawer' -%}
     {%- endif -%}
+    {%- endcomment -%}
 
     {% sections 'header-group' %}
 
@@ -369,8 +378,34 @@
       <script src="{{ 'predictive-search.js' | asset_url }}" defer="defer"></script>
     {%- endif -%}
 
+    {%- comment -%} Dawn cart-drawer.js — disabled, CartX handles cart {%- endcomment -%}
+    {%- comment -%}
     {%- if settings.cart_type == 'drawer' -%}
       <script src="{{ 'cart-drawer.js' | asset_url }}" defer="defer"></script>
     {%- endif -%}
+    {%- endcomment -%}
+
+    {% comment %} === CartX 2.0 Scripts === {% endcomment %}
+    <script src="{{ 'cartx-util.logger.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-util.helpers.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-core.events.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-core.loader.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-core.theme.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-core.engine.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.progress.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.gwp.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.freebie.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.claim.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.bogo.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.coupon.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.upsell.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'cartx-feat.scheduler.js' | asset_url }}" defer="defer"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.CartX && typeof CartX.init === 'function') {
+          CartX.init();
+        }
+      });
+    </script>
   </body>
 </html>

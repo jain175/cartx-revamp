@@ -1,0 +1,146 @@
+{% comment %}
+  CartX Cart Item — Individual cart line item rendering
+  Receives: item (cart line item object)
+{% endcomment %}
+
+{%- liquid
+  # Determine if this is a free gift
+  assign is_free = false
+  assign item_final = item.final_line_price
+  assign item_original = item.original_line_price
+  if item_final == 0 or item_final == 1 or item_final == 100
+    if item_original == 0 or item_original == 1 or item_original == 100
+      assign is_free = true
+    endif
+  endif
+
+  # Check if claimed gift
+  assign is_claimed = false
+  if item.properties.claimed_gift == 'true'
+    assign is_claimed = true
+  endif
+
+  # Collection IDs for BOGO matching
+  assign collection_ids = ''
+  for collection in item.product.collections
+    if collection_ids != ''
+      assign collection_ids = collection_ids | append: ','
+    endif
+    assign collection_ids = collection_ids | append: '"' | append: collection.id | append: '"'
+  endfor
+
+  # Discount info
+  assign has_discount = false
+  assign discount_amount = 0
+  if item.original_price > item.final_price
+    assign has_discount = true
+    assign discount_amount = item.original_price | minus: item.final_price
+  endif
+-%}
+
+<li class="cartx-drawer-product-item{% if is_free %} cartx-free-gift-item{% endif %}"
+    data-variant-id="{{ item.variant_id }}"
+    data-handle="{{ item.product.handle }}"
+    data-quantity="{{ item.quantity }}"
+    data-price="{{ item.final_price }}"
+    data-product-type="{{ item.product_type }}"
+    data-collection-ids='[{{ collection_ids }}]'
+    data-line-index="{{ forloop.index }}">
+
+  {%- comment -%} Product Image {%- endcomment -%}
+  <div class="cartx-item-image">
+    <a href="{{ item.url }}">
+      {%- if item.image -%}
+        <img
+          src="{{ item.image | image_url: width: 120 }}"
+          alt="{{ item.image.alt | escape }}"
+          width="60"
+          height="60"
+          loading="lazy"
+        >
+      {%- else -%}
+        <div class="cartx-item-no-image">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+        </div>
+      {%- endif -%}
+    </a>
+    {%- if is_free -%}
+      <span class="cartx-free-tag">Free</span>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} Product Details {%- endcomment -%}
+  <div class="cartx-item-details">
+    <a href="{{ item.url }}" class="cartx-item-title">{{ item.product.title }}</a>
+
+    {%- unless item.product.has_only_default_variant -%}
+      <p class="cartx-item-variant">{{ item.variant.title }}</p>
+    {%- endunless -%}
+
+    {%- comment -%} Item properties (excluding internal ones) {%- endcomment -%}
+    {%- if item.properties.size > 0 -%}
+      <ul class="cartx-item-properties">
+        {%- for property in item.properties -%}
+          {%- assign prop_first_char = property.first | slice: 0 -%}
+          {%- unless prop_first_char == '_' or property.first == 'claimed_gift' -%}
+            {%- if property.last != blank -%}
+              <li>{{ property.first }}: {{ property.last }}</li>
+            {%- endif -%}
+          {%- endunless -%}
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+
+    {%- comment -%} Price {%- endcomment -%}
+    <div class="cartx-item-price">
+      {%- if is_free -%}
+        <span class="cartx-price-free">Free</span>
+      {%- elsif has_discount -%}
+        <span class="cartx-price-compare">{{ item.original_price | money }}</span>
+        <span class="cartx-price-final">{{ item.final_price | money }}</span>
+      {%- else -%}
+        <span class="cartx-price-final">{{ item.final_price | money }}</span>
+      {%- endif -%}
+    </div>
+
+    {%- comment -%} Quantity Controls (not for free gifts) {%- endcomment -%}
+    {%- unless is_free -%}
+      <div class="cartx-item-quantity">
+        <button class="cartx-drawer-product-quantity-button" name="minus" aria-label="Decrease quantity">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <input
+          class="cartx-drawer-product-quantity-input"
+          type="text"
+          value="{{ item.quantity }}"
+          readonly
+          aria-label="Quantity"
+        >
+        <button class="cartx-drawer-product-quantity-button" name="plus" aria-label="Increase quantity">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    {%- endunless -%}
+
+    {%- comment -%} Line total {%- endcomment -%}
+    {%- unless is_free -%}
+      <div class="cartx-item-line-total">
+        {%- if item.original_line_price > item.final_line_price -%}
+          <span class="cartx-price-compare">{{ item.original_line_price | money }}</span>
+        {%- endif -%}
+        <span class="cartx-price-final">{{ item.final_line_price | money }}</span>
+      </div>
+    {%- endunless -%}
+  </div>
+
+  {%- comment -%} Remove button {%- endcomment -%}
+  <button class="cartx-item-remove" data-variant-id="{{ item.variant_id }}" aria-label="Remove {{ item.product.title }}">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M1 3.5h12M5 3.5V2a1 1 0 011-1h2a1 1 0 011 1v1.5M10.5 3.5v8a1 1 0 01-1 1h-5a1 1 0 01-1-1v-8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+    </svg>
+  </button>
+</li>

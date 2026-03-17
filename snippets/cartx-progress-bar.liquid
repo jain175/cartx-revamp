@@ -1,0 +1,258 @@
+{% comment %}
+  CartX Progress Bar — Dynamic progress engine
+  Auto-derives stages from gift_manage rules when no explicit cart_progressbar entries exist.
+
+  Receives: matched_object, total_cart_price, total_cart_price_cents,
+            total_cart_quantity, is_price_based, progressbar_is_price_based
+{% endcomment %}
+
+{%- liquid
+  assign stages = nil
+  assign derived_from_gwp = false
+
+  # Priority 1: explicit cart_progressbar entries
+  if matched_object and matched_object.cart_progressbar.value and matched_object.cart_progressbar.value.size > 0
+    assign stages = matched_object.cart_progressbar.value
+  endif
+
+  # Priority 2: auto-derive from gift_manage rules
+  if stages == nil or stages.size == 0
+    if matched_object and matched_object.gift_manage.value and matched_object.gift_manage.value.size > 0
+      assign stages = matched_object.gift_manage.value
+      assign derived_from_gwp = true
+    endif
+  endif
+
+  # When derived from GWP, use the GWP's is_price_based (not the separate progressbar toggle)
+  if derived_from_gwp
+    assign use_price = is_price_based
+  else
+    assign use_price = progressbar_is_price_based
+  endif
+-%}
+
+{%- if stages and stages.size > 0 -%}
+  {%- liquid
+    assign adj_value = 0
+    if use_price
+      assign adj_value = total_cart_price_cents
+    else
+      assign adj_value = total_cart_quantity
+    endif
+
+    assign completed_stages = 0
+    assign total_stages = stages.size
+
+    # --- First pass: count completed stages ---
+    for stage in stages
+      if use_price
+        assign threshold_raw = stage.trigger_price.value | default: 0 | plus: 0
+        assign threshold = threshold_raw | times: 100
+      else
+        if derived_from_gwp
+          assign threshold = stage.triggered_quantity.value | default: 0 | plus: 0
+        else
+          assign threshold = stage.trigger_product.value | default: 0 | plus: 0
+        endif
+      endif
+
+      if threshold > 0 and adj_value >= threshold
+        assign completed_stages = forloop.index
+      endif
+    endfor
+  -%}
+
+  <div class="cartx-progress-container-wrap"
+    data-total-stages="{{ total_stages }}">
+
+    {%- comment -%} Top message {%- endcomment -%}
+    <div class="cartx-progress-top-message">
+      {%- if completed_stages >= total_stages -%}
+        {%- if matched_object.top_message_after_stage_achieved.value -%}
+          {{ matched_object.top_message_after_stage_achieved.value }}
+        {%- else -%}
+          You've unlocked all rewards!
+        {%- endif -%}
+      {%- else -%}
+        {%- assign next_stage = stages[completed_stages] -%}
+        {%- liquid
+          # Get threshold for next stage
+          if use_price
+            assign next_threshold = next_stage.trigger_price.value | default: 0 | plus: 0 | times: 100
+          else
+            if derived_from_gwp
+              assign next_threshold = next_stage.triggered_quantity.value | default: 0 | plus: 0
+            else
+              assign next_threshold = next_stage.trigger_product.value | default: 0 | plus: 0
+            endif
+          endif
+
+          # Remaining (clamped to 0)
+          assign remaining_raw = next_threshold | minus: adj_value
+          if remaining_raw < 0
+            assign remaining_raw = 0
+          endif
+
+          # Determine message
+          assign stage_msg = ''
+          if derived_from_gwp
+            if next_stage.gift_locked_message.value
+              assign stage_msg = next_stage.gift_locked_message.value
+            endif
+          else
+            if next_stage.top_message_for_stage.value
+              assign stage_msg = next_stage.top_message_for_stage.value
+            endif
+          endif
+
+          # Default message if none set
+          if stage_msg == blank
+            if use_price
+              assign stage_msg = 'Add ₹[[PRICE]] more to unlock your next reward!'
+            else
+              assign stage_msg = 'Add [[PRODUCT]] more to unlock your next reward!'
+            endif
+          endif
+
+          # Replace placeholders
+          if use_price
+            assign remaining_display = remaining_raw | divided_by: 100 | round
+            assign stage_msg = stage_msg | replace: '[[PRICE]]', remaining_display
+          else
+            assign stage_msg = stage_msg | replace: '[[PRODUCT]]', remaining_raw
+          endif
+
+          if next_stage.gift_locked_product.value and next_stage.gift_locked_product.value.title
+            assign stage_msg = stage_msg | replace: '[[TITLE]]', next_stage.gift_locked_product.value.title
+          endif
+        -%}
+        {{ stage_msg }}
+      {%- endif -%}
+    </div>
+
+    {%- comment -%} Progress bar track {%- endcomment -%}
+    <div class="cartx-progress-bar-track">
+      {%- liquid
+        assign progress_pct = 0
+        if completed_stages >= total_stages
+          assign progress_pct = 100
+        elsif total_stages > 0
+          # For partial fill: calculate how far into the current segment we are
+          assign segment_size = 100.0 | divided_by: total_stages
+          assign base_pct = completed_stages | times: segment_size
+
+          # Get thresholds for partial calculation
+          assign prev_t = 0
+          assign next_t = 0
+          if completed_stages > 0
+            assign prev_stage_index = completed_stages | minus: 1
+            assign prev_stage_obj = stages[prev_stage_index]
+            if use_price
+              assign prev_t = prev_stage_obj.trigger_price.value | default: 0 | plus: 0 | times: 100
+            else
+              if derived_from_gwp
+                assign prev_t = prev_stage_obj.triggered_quantity.value | default: 0 | plus: 0
+              else
+                assign prev_t = prev_stage_obj.trigger_product.value | default: 0 | plus: 0
+              endif
+            endif
+          endif
+
+          assign next_stage_obj = stages[completed_stages]
+          if use_price
+            assign next_t = next_stage_obj.trigger_price.value | default: 0 | plus: 0 | times: 100
+          else
+            if derived_from_gwp
+              assign next_t = next_stage_obj.triggered_quantity.value | default: 0 | plus: 0
+            else
+              assign next_t = next_stage_obj.trigger_product.value | default: 0 | plus: 0
+            endif
+          endif
+
+          assign range = next_t | minus: prev_t
+          if range > 0
+            assign progress_in_segment = adj_value | minus: prev_t
+            assign partial_ratio = progress_in_segment | times: 1.0 | divided_by: range
+            if partial_ratio > 1
+              assign partial_ratio = 1.0
+            endif
+            if partial_ratio < 0
+              assign partial_ratio = 0
+            endif
+            assign partial_pct = partial_ratio | times: segment_size
+            assign progress_pct = base_pct | plus: partial_pct
+          else
+            assign progress_pct = base_pct
+          endif
+        endif
+
+        if progress_pct > 100
+          assign progress_pct = 100
+        endif
+      -%}
+      <div class="cartx-progress-bar-fill" style="width: {{ progress_pct }}%;"></div>
+
+      <div class="cartx-progress-circles">
+        {%- for stage in stages -%}
+          {%- liquid
+            assign next_stage_index = completed_stages | plus: 1
+            assign stage_class = 'inactive'
+            if forloop.index <= completed_stages
+              assign stage_class = 'active'
+            elsif forloop.index == next_stage_index
+              assign stage_class = 'inactive glowing-effect'
+            endif
+          -%}
+          <div class="cartx-progress-icon-container {{ stage_class }}">
+            <div class="cartx-progress-icon-box">
+              {%- if stage.upload_svg_icon.value -%}
+                {{ stage.upload_svg_icon.value }}
+              {%- else -%}
+                <svg class="cartx-progress-stage-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6M12 2v14M5 8l7-6 7 6"/>
+                </svg>
+              {%- endif -%}
+              <svg class="cartx-progress-checkmark" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+          </div>
+        {%- endfor -%}
+      </div>
+    </div>
+
+    {%- comment -%} Stage labels {%- endcomment -%}
+    <div class="cartx-progress-labels">
+      {%- for stage in stages -%}
+        {%- liquid
+          assign label_text = ''
+          assign label_sub = ''
+
+          if derived_from_gwp
+            if use_price
+              assign t_val = stage.trigger_price.value | default: 0 | plus: 0 | round
+              assign label_text = 'At ₹' | append: t_val
+            else
+              assign t_val = stage.triggered_quantity.value | default: 0 | plus: 0 | round
+              assign label_text = t_val | append: ' items'
+            endif
+            if stage.gift_locked_product.value and stage.gift_locked_product.value.title
+              assign label_sub = stage.gift_locked_product.value.title
+            else
+              assign label_sub = 'Free Gift'
+            endif
+          else
+            assign label_text = stage.message_for_stage.value | default: ''
+            assign label_sub = stage.sub_message_for_stage.value | default: ''
+          endif
+        -%}
+        <div class="cartx-progress-stage-label{% if forloop.index <= completed_stages %} active{% endif %}">
+          {{ label_text }}
+          {%- if label_sub != blank -%}
+            <br><small>{{ label_sub }}</small>
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+{%- endif -%}

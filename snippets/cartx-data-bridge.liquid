@@ -1,0 +1,187 @@
+{% comment %}
+  CartX Data Bridge — Serializes metaobject data onto <body> attributes
+  for JavaScript consumption via CartX.readBodyAttr().
+
+  Included in layout/theme.liquid BEFORE the <body> tag's content.
+  Sets body attributes: metaobject, cartfreebie, claimgift, bogooffers, oosgiftvariants
+
+  Uses safeJsonParse on JS side — missing attributes return [] instead of crashing.
+{% endcomment %}
+
+{%- liquid
+  # --- VIP Segmentation ---
+  assign is_vip = false
+  if customer and customer.tags
+    for tag in customer.tags
+      assign tag_lower = tag | downcase
+      if tag_lower == 'vip'
+        assign is_vip = true
+        break
+      endif
+    endfor
+  endif
+
+  # --- Select metaobject set ---
+  if is_vip
+    assign gwp_entries = shop.metaobjects.vip_gwp.values
+  else
+    assign gwp_entries = shop.metaobjects.site_gwp.values
+  endif
+
+  # --- Page matching: find best metaobject entry for current path ---
+  assign current_path = request.path
+  assign matched_object = nil
+  assign fallback_object = nil
+
+  if gwp_entries
+    for entry in gwp_entries
+      assign handles = entry.page_handle.value | split: ','
+      for handle in handles
+        assign h = handle | strip
+        if h == current_path
+          assign matched_object = entry
+          break
+        endif
+        if h == '/'
+          assign fallback_object = entry
+        endif
+      endfor
+      if matched_object
+        break
+      endif
+    endfor
+  endif
+
+  unless matched_object
+    assign matched_object = fallback_object
+  endunless
+
+  # --- Gift manage rules ---
+  assign gift_manage_json = '[]'
+  if matched_object and matched_object.gift_manage.value
+    assign gift_manage_json = matched_object.gift_manage.value | json
+  endif
+
+  # --- Claim gift rules ---
+  assign claim_gift_json = '[]'
+  if matched_object and matched_object.claim_gift.value
+    assign claim_gift_json = matched_object.claim_gift.value | json
+  endif
+
+  # --- Cart freebies ---
+  assign cart_freebie_json = '[]'
+  assign freebie_entries = shop.metaobjects.cart_freebie.values
+  if freebie_entries
+    assign cart_freebie_json = freebie_entries | json
+  endif
+
+  # --- BOGO offers (hand-built JSON for custom structure) ---
+  assign bogo_json = '[]'
+  if matched_object and matched_object.bogo_offers.value
+    assign bogo_json = matched_object.bogo_offers.value | json
+  endif
+
+  # --- Metaobject config flags ---
+  assign is_price_based = false
+  assign number_of_offers = 0
+  assign disable_progress_bar = false
+  assign progressbar_is_price_based = false
+  assign offer_code = ''
+  assign final_message = ''
+  assign top_message_after = ''
+
+  if matched_object
+    if matched_object.is_price_based.value == true
+      assign is_price_based = true
+    endif
+    assign number_of_offers = matched_object.number_of_offers.value | default: 0
+    if matched_object.disable_progress_bar.value == true
+      assign disable_progress_bar = true
+    endif
+    if matched_object.progressbar_is_price_based.value == true
+      assign progressbar_is_price_based = true
+    endif
+    assign offer_code = matched_object.code.value | default: ''
+    assign final_message = matched_object.final_message.value | default: ''
+    assign top_message_after = matched_object.top_message_after_stage_achieved.value | default: ''
+  endif
+
+  # --- Progress bar stages ---
+  # Priority: explicit cart_progressbar entries > auto-derived from gift_manage rules
+  assign progressbar_json = '[]'
+  assign has_explicit_progressbar = false
+  if matched_object and matched_object.cart_progressbar.value and matched_object.cart_progressbar.value.size > 0
+    assign progressbar_json = matched_object.cart_progressbar.value | json
+    assign has_explicit_progressbar = true
+  endif
+
+  # --- Coupon definitions ---
+  assign coupons_json = '[]'
+  if customer
+    if matched_object and matched_object.signed_in_customer_coupons.value
+      assign coupons_json = matched_object.signed_in_customer_coupons.value | json
+    endif
+  else
+    if matched_object and matched_object.regular_customer_coupouns.value
+      assign coupons_json = matched_object.regular_customer_coupouns.value | json
+    endif
+  endif
+
+  # --- OOS gift variants (pre-computed from Liquid) ---
+  assign oos_variants = ''
+  if matched_object and matched_object.gift_manage.value
+    for rule in matched_object.gift_manage.value
+      if rule.get_y.value
+        for variant_ref in rule.get_y.value
+          assign v = variant_ref | split: '/' | last
+          if v
+            assign variant_obj = shop.metaobjects.product_variants[v]
+            if variant_obj == nil
+              if oos_variants != ''
+                assign oos_variants = oos_variants | append: ','
+              endif
+              assign oos_variants = oos_variants | append: v
+            endif
+          endif
+        endfor
+      endif
+    endfor
+  endif
+-%}
+
+<script type="application/json" id="cartx-config">
+{
+  "isPriceBased": {{ is_price_based }},
+  "numberOfOffers": {{ number_of_offers }},
+  "disableProgressBar": {{ disable_progress_bar }},
+  "progressbarIsPriceBased": {{ progressbar_is_price_based }},
+  "offerCode": {{ offer_code | json }},
+  "finalMessage": {{ final_message | json }},
+  "topMessageAfter": {{ top_message_after | json }},
+  "isVip": {{ is_vip }},
+  "isLoggedIn": {% if customer %}true{% else %}false{% endif %},
+  "currency": "₹",
+  "cartToken": {{ cart.token | json }},
+  "shopUrl": {{ request.origin | json }},
+  "currentPath": {{ current_path | json }}
+}
+</script>
+
+<script type="application/json" id="cartx-gift-manage">{{ gift_manage_json }}</script>
+<script type="application/json" id="cartx-claim-gift">{{ claim_gift_json }}</script>
+<script type="application/json" id="cartx-cart-freebie">{{ cart_freebie_json }}</script>
+<script type="application/json" id="cartx-bogo-offers">{{ bogo_json }}</script>
+<script type="application/json" id="cartx-progressbar-stages">{{ progressbar_json }}</script>
+<script type="application/json" id="cartx-coupons">{{ coupons_json }}</script>
+
+{% comment %} Body attributes for backward compat + quick access {% endcomment %}
+<script>
+  (function() {
+    var b = document.body;
+    b.setAttribute('metaobject', {{ gift_manage_json | json }});
+    b.setAttribute('cartfreebie', {{ cart_freebie_json | json }});
+    b.setAttribute('claimgift', {{ claim_gift_json | json }});
+    b.setAttribute('bogooffers', {{ bogo_json | json }});
+    b.setAttribute('oosgiftvariants', {{ oos_variants | json }});
+  })();
+</script>

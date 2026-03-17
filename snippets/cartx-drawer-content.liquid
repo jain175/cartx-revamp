@@ -1,0 +1,196 @@
+{% comment %}
+  CartX Drawer Content — Main drawer HTML orchestrator
+  This is what gets replaced on section re-render.
+
+  Receives: cart, matched_object, section, total_cart_price, total_cart_price_cents,
+            total_cart_quantity, is_price_based, disable_progress_bar,
+            progressbar_is_price_based, is_vip, ai_upsell
+{% endcomment %}
+
+{%- liquid
+  assign item_count = cart.item_count
+  assign has_items = false
+  if item_count > 0
+    assign has_items = true
+  endif
+-%}
+
+{%- comment -%} Announcement Ribbon {%- endcomment -%}
+{%- if section.settings.enable_announcement_ribbon -%}
+  <div class="cartx-announcement-ribbon"
+    data-autoplay="{{ section.settings.announcement_ribbon_autoplay | default: true }}"
+    data-speed="{{ section.settings.announcement_ribbon_rotation_speed | default: 3 }}">
+    {%- if section.settings.announcement_ribbon_text_1 != blank -%}
+      <div class="cartx-announcement-slide{% if forloop == nil %} active{% endif %}">
+        {%- if section.settings.announcement_ribbon_url_1 != blank -%}
+          <a href="{{ section.settings.announcement_ribbon_url_1 }}">{{ section.settings.announcement_ribbon_text_1 }}</a>
+        {%- else -%}
+          <span>{{ section.settings.announcement_ribbon_text_1 }}</span>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+    {%- if section.settings.announcement_ribbon_text_2 != blank -%}
+      <div class="cartx-announcement-slide">
+        {%- if section.settings.announcement_ribbon_url_2 != blank -%}
+          <a href="{{ section.settings.announcement_ribbon_url_2 }}">{{ section.settings.announcement_ribbon_text_2 }}</a>
+        {%- else -%}
+          <span>{{ section.settings.announcement_ribbon_text_2 }}</span>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+    {%- if section.settings.announcement_ribbon_text_3 != blank -%}
+      <div class="cartx-announcement-slide">
+        {%- if section.settings.announcement_ribbon_url_3 != blank -%}
+          <a href="{{ section.settings.announcement_ribbon_url_3 }}">{{ section.settings.announcement_ribbon_text_3 }}</a>
+        {%- else -%}
+          <span>{{ section.settings.announcement_ribbon_text_3 }}</span>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+{%- endif -%}
+
+{%- comment -%} Drawer Header {%- endcomment -%}
+<div class="cartx-drawer-header">
+  <h2 class="cartx-drawer-title">
+    Your Cart
+    {%- if has_items -%}
+      <span class="cartx-drawer-item-count" data-count="{{ item_count }}">({{ item_count }})</span>
+    {%- endif -%}
+  </h2>
+  <button class="cartx-drawer-close" aria-label="Close cart">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+
+{%- if has_items -%}
+  {%- comment -%} Progress Bar {%- endcomment -%}
+  {%- unless disable_progress_bar -%}
+    {%- render 'cartx-progress-bar',
+      matched_object: matched_object,
+      total_cart_price: total_cart_price,
+      total_cart_price_cents: total_cart_price_cents,
+      total_cart_quantity: total_cart_quantity,
+      is_price_based: is_price_based,
+      progressbar_is_price_based: progressbar_is_price_based
+    -%}
+  {%- endunless -%}
+
+  {%- comment -%} Claim Gift {%- endcomment -%}
+  {%- if matched_object and matched_object.claim_gift.value -%}
+    {%- render 'cartx-claim-gift',
+      claim_rules: matched_object.claim_gift.value,
+      total_cart_price: total_cart_price,
+      total_cart_price_cents: total_cart_price_cents,
+      total_cart_quantity: total_cart_quantity,
+      is_price_based: is_price_based
+    -%}
+  {%- endif -%}
+
+  {%- comment -%} Cart Items {%- endcomment -%}
+  <div class="cartx-drawer-body-wrap">
+    <ul class="cartx-drawer-items" role="list">
+      {%- for item in cart.items -%}
+        {%- render 'cartx-cart-item', item: item -%}
+      {%- endfor -%}
+    </ul>
+
+    {%- comment -%} Gift Details (locked preview) {%- endcomment -%}
+    {%- if matched_object and matched_object.gift_manage.value -%}
+      {%- render 'cartx-gift-details',
+        gift_rules: matched_object.gift_manage.value,
+        total_cart_price: total_cart_price,
+        total_cart_price_cents: total_cart_price_cents,
+        total_cart_quantity: total_cart_quantity,
+        is_price_based: is_price_based
+      -%}
+    {%- endif -%}
+
+    {%- comment -%} BOGO Offers {%- endcomment -%}
+    {%- if matched_object and matched_object.bogo_offers.value -%}
+      {%- render 'cartx-bogo-offer',
+        bogo_offers: matched_object.bogo_offers.value,
+        cart: cart,
+        total_cart_price_cents: total_cart_price_cents
+      -%}
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} Coupon Panel {%- endcomment -%}
+  {%- render 'cartx-coupon-panel',
+    matched_object: matched_object,
+    cart: cart,
+    total_cart_price: total_cart_price,
+    total_cart_price_cents: total_cart_price_cents,
+    total_cart_quantity: total_cart_quantity,
+    is_price_based: is_price_based
+  -%}
+
+  {%- comment -%} Upsells {%- endcomment -%}
+  {%- render 'cartx-upsell',
+    cart: cart,
+    section: section,
+    ai_upsell: ai_upsell
+  -%}
+
+  {%- comment -%} Gift unavailable sticky message {%- endcomment -%}
+  <div class="cartx-gift-unavailable-sticky" style="display:none;">
+    <p>{{ section.settings.gift_unavailable_message | default: 'Gift product is out of stock' }}</p>
+  </div>
+
+  {%- comment -%} Order Summary {%- endcomment -%}
+  {%- render 'cartx-order-summary', cart: cart -%}
+
+  {%- comment -%} Cart Ribbon {%- endcomment -%}
+  {%- render 'cartx-cart-ribbon',
+    matched_object: matched_object,
+    total_cart_price: total_cart_price,
+    total_cart_price_cents: total_cart_price_cents,
+    total_cart_quantity: total_cart_quantity,
+    is_price_based: is_price_based
+  -%}
+
+  {%- comment -%} Trust Badges {%- endcomment -%}
+  {%- render 'cartx-trust-badges' -%}
+
+  {%- comment -%} Checkout Button {%- endcomment -%}
+  <div class="cartx-drawer-footer">
+    <a href="/checkout" class="cartx-checkout-btn">
+      Checkout &bull; {{ cart.total_price | money }}
+    </a>
+  </div>
+
+  {%- comment -%} Confetti container {%- endcomment -%}
+  <div id="cartx-confetti" style="pointer-events:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:9999;"></div>
+
+{%- else -%}
+  {%- comment -%} Empty Cart State {%- endcomment -%}
+  <div class="cartx-empty-cart">
+    {%- if section.settings.empty_cart_image -%}
+      <img
+        src="{{ section.settings.empty_cart_image | image_url: width: 200 }}"
+        alt="Empty cart"
+        width="200"
+        height="200"
+        loading="lazy"
+      >
+    {%- else -%}
+      <svg class="cartx-empty-cart-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
+      </svg>
+    {%- endif -%}
+    <p class="cartx-empty-cart-text">Your cart is empty</p>
+    <a href="/collections/all" class="cartx-empty-cart-link">Continue Shopping</a>
+  </div>
+{%- endif -%}
+
+{%- comment -%} Toast notification container {%- endcomment -%}
+<div id="cartx-toast" class="cartx-toast" aria-live="polite"></div>
+
+{%- comment -%} Loading overlay {%- endcomment -%}
+<div class="cartx-loader" style="display:none;">
+  <div class="cartx-loader-spinner"></div>
+</div>
